@@ -1,9 +1,11 @@
 from scapy.all import *
+import sys
+import random
 
-sport = 35555
+sport = random.randint(1025, 56000)
 dport = 80
 init_seq = 1000
-dst = "171.67.215.200"
+dst = sys.argv[1]
 
 ip = IP(dst=dst)
 SYN=TCP(sport=sport, dport=dport, flags="S", seq=init_seq)
