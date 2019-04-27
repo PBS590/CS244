@@ -9,7 +9,7 @@ sport = random.randint(1025, 56000)
 #sport = 12345
 dport = 80 
 init_seq = 1000
-icws = defaultdict(int)
+icws = {}
 #dst = sys.argv[1]
 websites = ["google.com",
     "youtube.com",
@@ -61,9 +61,23 @@ websites = ["google.com",
     "quizlet.com",
     "xvideos.com",]
 
+ips = {}
+def get_ips(website, packet):
+  ips[website] = str(packet[IP].src)
+
 def count_packet(website, packet):
-  icws[website] += packet[IP].len
-  print(website + ": " + str(icws[website]))
+  ips[website] = packet[IP].src
+  size = packet[IP].len - 20 - (packet[TCP].dataofs * 4)
+  start_seqno = icws[website][0]
+  diff = packet[TCP].seq + size - start_seqno
+  if diff < 100000 and diff > icws[website][1]:
+    icws[website][1] = diff
+  if (Raw in packet):
+      print(packet[Raw])
+      print("-------------------------------------------------------------------")
+  print(website + ": " + str(icws[website][1]))
+  print(packet[IP].src)
+  print(packet[TCP].flags)
 
 for website in websites:
   ip = IP(dst=website)
@@ -72,10 +86,10 @@ for website in websites:
 
   ACK=TCP(sport=sport, dport=dport, flags='A', seq=SYNACK.ack, ack=SYNACK.seq + 1)
   http ="GET / HTTP/1.0\r\n\r\n"
-  
+  icws[website] = [SYNACK.seq, 0]
   send_res = send(ip/ACK/http)
-  sniff(timeout=3, filter="dst port " + str(sport), prn=lambda x: count_packet(website, x))
-
+  sniff(timeout=1, filter="dst port " + str(sport), prn=lambda x: count_packet(website, x))
+ 
 for web in icws.keys():
   print(web + ": " + icws[web])
 
