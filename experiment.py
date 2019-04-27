@@ -62,11 +62,15 @@ websites = ["google.com",
     "xvideos.com",]
 
 ips = {}
+packet_seqnos = {}
 def get_ips(website, packet):
   ips[website] = str(packet[IP].src)
 
 def count_packet(website, packet):
-  ips[website] = packet[IP].src
+  if (packet[TCP].seq not in packet_seqnos):
+    icws[website][2] += 1
+    packet_seqnos[packet[TCP].seq] = 1
+
   size = packet[IP].len - 20 - (packet[TCP].dataofs * 4)
   start_seqno = icws[website][0]
   diff = packet[TCP].seq + size - start_seqno
@@ -82,15 +86,17 @@ def count_packet(website, packet):
 for website in websites:
   ip = IP(dst=website)
   SYN=TCP(sport=sport, dport=dport, flags="S", seq=init_seq, options=[('MSS', 10)])
-  SYNACK=sr1(ip/SYN, timeout=20)
-
+  SYNACK=sr1(ip/SYN, timeout=5)
+  if (SYNACK == None):
+    continue
   ACK=TCP(sport=sport, dport=dport, flags='A', seq=SYNACK.ack, ack=SYNACK.seq + 1)
-  http ="GET / HTTP/1.0\r\n\r\n"
-  icws[website] = [SYNACK.seq, 0]
+  http ="GET /dfadfdsafdsafjdsfkjhasdfjkasdflkjhasdflhdsaflkjhasdlkfjhadsklfjhasdflkjhasdlfkjhasdflkjasdhfkljdshflkjasdhflkjdsahflkjsdahflksadjhflasdkjhfladskjhfasdlkjfhasdlkjfhsdalkjfhasdlkjfhasdlkfjhasdlfkjhasdlfkjhsdaflkjhadflkjhasdlfkjadhsflkjdashflkdsjahflkasdjhflasdjfhasdlkjfhasdlkjfhasdlkjfhdaslkfjhasdlkjfhadslfkhasdflkjasdhfsadfljsdhfkljdsahfljashflkahflkasdjhflskdahjfaljfhlkajhfklasdjhfklasdhflkasdjhflaksdjhflakjfhdlskjfhsdalkjfhsdlkajhfldskjfhasdlkjfhasdlkjfhasdlkf HTTP/1.0\r\n\r\n"
+  icws[website] = [SYNACK.seq, 0, 0]
   send_res = send(ip/ACK/http)
-  sniff(timeout=1, filter="dst port " + str(sport), prn=lambda x: count_packet(website, x))
- 
+  sniff(timeout=1, filter="dst port " + str(sport) + " and src " + website, prn=lambda x: count_packet(website, x))
+  packet_seqnos.clear()
+
 for web in icws.keys():
-  print(web + ": " + icws[web])
+  print(web + ": " + str(icws[web][1]) + ": " + str(icws[web][2]))
 
 
