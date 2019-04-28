@@ -9,7 +9,6 @@ import threading
 sport = random.randint(1025, 56000)
 #sport = 12345
 dport = 80 
-init_seq = 1000
 icws = {}
 if len(sys.argv) > 1:
   dst = sys.argv[1]
@@ -45,6 +44,7 @@ websites = ["google.com",
     "github.com",
     "hulu.com",
     "microsoft.com",
+    "microsoftonline.com",
     "salesforce.com",
     "zillow.com",
     "stackoverflow.com",
@@ -64,6 +64,7 @@ websites = ["google.com",
     "xvideos.com",]
 
 packet_seqnos = {}
+
 def get_ips(website, packet):
   ips[website] = str(packet[IP].src)
 
@@ -73,14 +74,12 @@ def count_packet(website, packet):
     packet_seqnos[packet[TCP].seq] = 1
 
   size = packet[IP].len - 20 - (packet[TCP].dataofs * 4)
-  
-  print(packet[TCP].seq)
-  print(size)
-  print(packet[IP].len)
   start_seqno = icws[website][0]
   diff = packet[TCP].seq + size - start_seqno
+  
   if diff < 100000 and diff > icws[website][1]:
     icws[website][1] = diff
+  
   if (Raw in packet):
       print(packet[Raw])
       print("-------------------------------------------------------------------")
@@ -99,14 +98,17 @@ for website in websites:
     continue
   ACK=TCP(sport=sport, dport=dport, flags='A', seq=SYNACK.ack, ack=SYNACK.seq + 1)
   http ="GET /dfadfdsafdsafjdsfkjhasdfjkasdflkjhasdflhdsaflkjhasdlkfjhadsklfjhasdflkjhasdlfkjhasdflkjasdhfkljdshflkjasdhflkjdsahflkjsdahflksadjhflasdkjhfladskjhfasdlkjfhasdlkjfhsdalkjfhasdlkjfhasdlkfjhasdlfkjhasdlfkjhsdaflkjhadflkjhasdlfkjadhsflkjdashflkdsjahflkasdjhflasdjfhasdlkjfhasdlkjfhasdlkjfhdaslkfjhasdlkjfhadslfkhasdflkjasdhfsadfljsdhfkljdsahfljashflkahflkasdjhflskdahjfaljfhlkajhfklasdjhfklasdhflkasdjhflaksdjhflakjfhdlskjfhsdalkjfhsdlkajhfldskjfhasdlkjfhasdlkjfhasdlkf HTTP/1.0\r\n\r\n"
+  
   packet_seqnos[SYNACK.seq] = 1
   icws[website] = [SYNACK.seq, 0, 0]
+  
   t1 = threading.Thread(target=run_sniff, args=(website, sport))
   t1.start()
+  
   time.sleep(1)
   send_res = send(ip/ACK/http)
-  #sniff(timeout=3, filter="dst port " + str(sport) + " and src " + website, prn=lambda x: count_packet(website, x))
   t1.join()
+  
   sport += 1
   packet_seqnos.clear()
 
